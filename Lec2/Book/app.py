@@ -1,8 +1,38 @@
+import hashlib
+import json
+import sqlite3
+from pathlib import Path
+
 from flask import Flask, jsonify, make_response, request
 
 app = Flask(__name__)
 BOOKS = []
 _next_id = 1
+DATABASE = Path(app.root_path) / "orders.db"
+
+
+def get_db():
+    connection = sqlite3.connect(DATABASE)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def init_db():
+    schema_path = Path(app.root_path) / "schema.sql"
+    with get_db() as connection:
+        connection.executescript(schema_path.read_text(encoding="utf-8"))
+
+
+def order_to_dict(order):
+    return dict(order)
+
+
+def book_etag(book):
+    content = json.dumps(book, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+init_db()
 
 
 # ─── tham số phân trang
@@ -101,7 +131,7 @@ def create_book():
     return response
 
 
-# ─── GET /books/<id> ─── cache 60s
+# ─── GET /books/<id> ─── cache 60s + conditional request
 @app.get("/books/<int:bid>")
 def fetch(bid):
     index = next((key for key, book in enumerate(BOOKS)
@@ -109,7 +139,16 @@ def fetch(bid):
     if index is None:
         return jsonify(error="not found"), 404
 
-    response = make_response(jsonify(BOOKS[index]), 200)
+    book = BOOKS[index]
+    etag = book_etag(book)
+    if request.if_none_match.contains(etag):
+        response = make_response("", 304)
+        response.set_etag(etag)
+        response.headers["Cache-Control"] = "max-age=60"
+        return response
+
+    response = make_response(jsonify(book), 200)
+    response.set_etag(etag)
     response.headers["Cache-Control"] = "max-age=60"
     return response
 
@@ -167,3 +206,65 @@ def delete(bid):
     BOOKS.pop(index)
     return "", 204
 
+
+# ─── ORDERS ─── SQLite
+@app.get("/orders")
+def list_orders():
+    with get_db() as connection:
+        rows = connection.execute(
+            "SELECT id, customer, total, status FROM orders ORDER BY id"
+        ).fetchall()
+
+    orders = [order_to_dict(row) for row in rows]
+    return jsonify({"data": orders, "total": len(orders)}), 200
+
+# Homework lec1
+@app.post("/orders")
+def create_order():
+    if not request.is_json:
+        return jsonify(error="expected JSON"), 415
+
+    payload = request.get_json(silent=True) or {}
+    customer = (payload.get("customer") or "").strip()
+    total = payload.get("total")
+    status = (payload.get("status") or "pending").strip()
+
+    if not customer or total is None:
+        return jsonify(error="customer and total required"), 422
+    try:
+        total = float(total)
+    except (TypeError, ValueError):
+        return jsonify(error="total must be a number"), 422
+    if total < 0:
+        return jsonify(error="total must be non-negative"), 422
+
+    with get_db() as connection:
+        cursor = connection.execute(
+            "INSERT INTO orders (customer, total, status) VALUES (?, ?, ?)",
+            (customer, total, status),
+        )
+        order_id = cursor.lastrowid
+        row = connection.execute(
+            "SELECT id, customer, total, status FROM orders WHERE id = ?",
+            (order_id,),
+        ).fetchone()
+
+    response = make_response(jsonify(order_to_dict(row)), 201)
+    response.headers["Location"] = f"/orders/{order_id}"
+    return response
+
+
+@app.get("/orders/<int:oid>")
+def get_order(oid):
+    with get_db() as connection:
+        row = connection.execute(
+            "SELECT id, customer, total, status FROM orders WHERE id = ?",
+            (oid,),
+        ).fetchone()
+
+    if row is None:
+        return jsonify(error="not found"), 404
+    return jsonify(order_to_dict(row)), 200
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=True)
