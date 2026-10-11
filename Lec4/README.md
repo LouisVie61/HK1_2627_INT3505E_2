@@ -29,3 +29,13 @@ Cũng có thể kéo thả file `openapi.yaml` trực tiếp vào Swagger Editor
 ## Lưu ý chạy thử
 
 Spec chỉ mô tả hợp đồng API; server thực tế cần chạy tại `http://localhost:5000/v1` hoặc chỉnh lại mục `servers` trong `openapi.yaml`.
+
+## Hai quyết định khó khăn khi thiết kế chức năng Delete BTVN
+
+### 1. Chọn xóa cứng và trả về `204 No Content`
+
+Quyết định đầu tiên là xóa hẳn task khỏi dữ liệu (`del TASKS[task["id"]]`) thay vì dùng xóa mềm, chẳng hạn thêm trường `deletedAt`. Xóa mềm an toàn hơn cho việc khôi phục và audit, nhưng làm mô hình dữ liệu, logic truy vấn và đặc tả API phức tạp hơn. Với phạm vi Lec4, dữ liệu chỉ được lưu trong bộ nhớ và đề bài không yêu cầu khôi phục hay lưu lịch sử, nên xóa cứng là lựa chọn phù hợp và dễ kiểm chứng. Khi xóa thành công, API trả `204 No Content` vì thao tác đã hoàn tất và không cần gửi lại object task trong response.
+
+### 2. Phân biệt task không tồn tại và thao tác xóa thành công
+
+Quyết định thứ hai là không coi việc xóa một `taskId` không tồn tại là thành công. Endpoint phải kiểm tra UUID và tìm task trước khi xóa; nếu ID sai định dạng hoặc không có trong hệ thống, API trả `404 Not Found` theo cùng một cấu trúc lỗi `{ code, message }`. Cách này giúp client phát hiện lỗi nhập ID, tránh tưởng rằng dữ liệu đã bị xóa, đồng thời giữ hành vi nhất quán với `GET /tasks/{taskId}` và `PATCH /tasks/{taskId}`. Chỉ khi task thực sự tồn tại mới trả `204`.
