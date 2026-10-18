@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BookCreate",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "isbn": { "type": "string", "minLength": 10, "maxLength": 20 },
+    "price_vnd": { "type": "integer", "minimum": 0 },
+    "stock": { "type": "integer", "minimum": 0 },
+    "category_id": { "type": ["integer", "null"] },
+    "author_ids": { "type": "array", "items": { "type": "integer" } }
+  },
+  "required": ["title", "isbn", "price_vnd"],
+  "additionalProperties": false
+}

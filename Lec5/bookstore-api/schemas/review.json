@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReviewCreate",
+  "type": "object",
+  "properties": {
+    "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "book_id": { "type": "integer" },
+    "user_id": { "type": "integer" }
+  },
+  "required": ["rating", "book_id", "user_id"],
+  "additionalProperties": false
+}
