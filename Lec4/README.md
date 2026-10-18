@@ -26,10 +26,6 @@ Cũng có thể kéo thả file `openapi.yaml` trực tiếp vào Swagger Editor
 - Response danh sách trả về `{ data, pagination }`.
 - Lỗi trả về thống nhất theo `{ code, message, details }`.
 
-## Lưu ý chạy thử
-
-Spec chỉ mô tả hợp đồng API; server thực tế cần chạy tại `http://localhost:5000/v1` hoặc chỉnh lại mục `servers` trong `openapi.yaml`.
-
 ## Hai quyết định khó khăn khi thiết kế chức năng Delete BTVN
 
 ### 1. Chọn xóa cứng và trả về `204 No Content`
