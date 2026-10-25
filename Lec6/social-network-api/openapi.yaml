@@ -1,0 +1,190 @@
+openapi: 3.0.3
+info:
+  title: Social Network API
+  version: 1.0.0
+  description: |
+    API mạng xã hội (Lec6): đăng nhập, làm mới token, xem bài viết.
+    Xác thực bằng JWT (HS256). Access token sống 15 phút, refresh token sống 7 ngày và chỉ dùng được 1 lần (rotation).
+servers:
+  - url: http://127.0.0.1:5000
+tags:
+  - name: Auth
+  - name: Posts
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập, nhận cặp access/refresh token
+      description: |
+        **Scope cần:** không (endpoint công khai, xác thực bằng username/password).
+        Token cấp ra mang scope của tài khoản (vd `posts:read posts:write`).
+        Sai mật khẩu 5 lần liên tiếp thì khóa tài khoản 15 phút.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example: {username: alice, password: alice123}
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          headers:
+            Cache-Control:
+              schema: {type: string, example: no-store}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Sai tên đăng nhập hoặc mật khẩu (`invalid_credentials`). Cùng 1 thông báo cho cả "user không tồn tại" và "sai mật khẩu".
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+              example: {error: {code: invalid_credentials, message: Sai tên đăng nhập hoặc mật khẩu}}
+        '429':
+          description: Tài khoản đang bị khóa tạm thời do sai quá 5 lần (`account_locked`).
+          headers:
+            Retry-After:
+              description: Số giây phải chờ
+              schema: {type: integer}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Đổi refresh token lấy cặp token mới
+      description: |
+        **Scope cần:** không có scope; yêu cầu một **refresh token** hợp lệ (claim `type=refresh`) trong body.
+        Access token KHÔNG dùng được ở đây. Refresh token cũ bị thu hồi ngay sau khi đổi (rotation);
+        dùng lại token cũ trả 401 `token_revoked`. Scope của token mới được lấy lại từ hệ thống, không sao chép từ token cũ.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Cấp cặp token mới
+          headers:
+            Cache-Control:
+              schema: {type: string, example: no-store}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: |
+            Refresh token không dùng được. Các `error.code` có thể gặp:
+            `invalid_token` (sai chữ ký, sai định dạng, nhầm access token),
+            `token_expired` (hết hạn, phải đăng nhập lại),
+            `token_revoked` (đã dùng/bị thu hồi).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+              example: {error: {code: token_revoked, message: Refresh token đã bị thu hồi/đã sử dụng}}
+  /posts/{id}:
+    get:
+      tags: [Posts]
+      summary: Xem 1 bài viết
+      description: |
+        **Scope cần:** `posts:read`.
+        Bài `public` ai có scope đều xem được. Bài `private` chỉ tác giả xem được;
+        người khác nhận 404 (giống bài không tồn tại) để không lộ sự tồn tại của ID.
+      security:
+        - bearerAuth: [posts:read]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+          example: 1
+      responses:
+        '200':
+          description: Trả về bài viết
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Post'}
+        '401':
+          description: |
+            Chưa xác thực. `error.code`: `missing_token` (thiếu header Authorization),
+            `invalid_token` (token sai/giả), `token_expired` (access token hết hạn, gọi /auth/refresh).
+          headers:
+            WWW-Authenticate:
+              schema: {type: string, example: Bearer}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '403':
+          description: Token hợp lệ nhưng thiếu scope `posts:read` (`insufficient_scope`).
+          headers:
+            WWW-Authenticate:
+              schema: {type: string}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+        '404':
+          description: Bài viết không tồn tại, hoặc là bài private của người khác (`post_not_found`).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Error'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Body không phải JSON hợp lệ, thiếu hoặc sai kiểu trường (`invalid_request`).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+          example: {error: {code: invalid_request, message: "Cần JSON {username, password} dạng chuỗi không rỗng"}}
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: {type: string, minLength: 1}
+        password: {type: string, minLength: 1, format: password}
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: {type: string}
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in]
+      properties:
+        access_token: {type: string}
+        refresh_token: {type: string}
+        token_type: {type: string, enum: [Bearer]}
+        expires_in: {type: integer, description: Giây hiệu lực của access token, example: 900}
+    Post:
+      type: object
+      required: [id, author_id, content, visibility, created_at]
+      properties:
+        id: {type: integer}
+        author_id: {type: integer}
+        content: {type: string}
+        visibility: {type: string, enum: [public, private]}
+        created_at: {type: string, format: date-time}
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: {type: string}
+            message: {type: string}
