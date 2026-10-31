@@ -22,3 +22,25 @@ curl -X DELETE localhost:5000/api/v1/products/1
 
 `DATABASE_URL` mặc định là SQLite. Có thể trỏ sang PostgreSQL bằng biến môi trường tương ứng.
 
+## Bổ sung bài tập về nhà
+
+- `Order` và `OrderItem` dùng blueprint riêng tại `/api/v1/orders`. Một Product
+  chỉ được xuất hiện một lần trong cùng Order nhờ unique constraint
+  `uq_order_product`.
+- `/healthz` chỉ kiểm tra service còn hoạt động; `/ready` kiểm tra kết nối database.
+- Chạy test: `pytest -q`.
+- Chạy bằng Docker: `docker compose up --build`.
+
+Ví dụ OrderItem:
+
+```bash
+curl -X POST localhost:5000/api/v1/orders
+curl -X POST localhost:5000/api/v1/orders/1/items \
+  -H "Content-Type: application/json" \
+  -d '{"product_id":1,"qty":2}'
+curl localhost:5000/api/v1/orders/1
+```
+
+GET Order dùng `joinedload(Order.items).joinedload(OrderItem.product)` để nạp
+OrderItem và Product trong một truy vấn, tránh N+1 khi dựng response.
+

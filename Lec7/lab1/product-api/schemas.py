@@ -31,3 +31,22 @@ class ProductPatch(Schema):
 class ReserveIn(Schema):
     qty = fields.Int(required=True, validate=validate.Range(min=1))
 
+
+class OrderItemIn(Schema):
+    product_id = fields.Int(required=True, validate=validate.Range(min=1))
+    qty = fields.Int(required=True, validate=validate.Range(min=1))
+
+
+class OrderItemOut(Schema):
+    id = fields.Int(dump_only=True)
+    order_id = fields.Int()
+    product_id = fields.Int()
+    qty = fields.Int()
+    product = fields.Nested(ProductOut, only=("id", "sku", "name", "price_cents"))
+
+
+class OrderOut(Schema):
+    id = fields.Int(dump_only=True)
+    created_at = fields.DateTime(dump_only=True)
+    items = fields.Nested(OrderItemOut, many=True)
+

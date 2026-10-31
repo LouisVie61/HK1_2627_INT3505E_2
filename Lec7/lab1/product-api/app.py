@@ -2,8 +2,10 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from api.orders import orders_bp
 from api.products import products_bp
 from errors import ApiError, error_response
 from extensions import db
@@ -20,6 +22,7 @@ def create_app(test_config=None):
         app.config.update(test_config)
     db.init_app(app)
     app.register_blueprint(products_bp)
+    app.register_blueprint(orders_bp)
     app.register_error_handler(ApiError, error_response)
 
     @app.errorhandler(404)
@@ -31,8 +34,20 @@ def create_app(test_config=None):
         db.session.rollback()
         return jsonify({"error": "Database constraint violated"}), 409
 
+    @app.get("/healthz")
+    def healthz():
+        return jsonify({"status": "ok"}), 200
+
+    @app.get("/ready")
+    def ready():
+        try:
+            db.session.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            return jsonify({"status": "not_ready"}), 503
+        return jsonify({"status": "ready"}), 200
+
     with app.app_context():
-        from models import Product  # noqa: F401
+        from models import Order, OrderItem, Product  # noqa: F401
         db.create_all()
     return app
 
