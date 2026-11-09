@@ -7,3 +7,6 @@ SQLAlchemy 2.x và Marshmallow.
 
 Xem toàn bộ mã nguồn và hướng dẫn chạy tại [lab1/product-api](lab1/product-api/).
 
+Demo so sánh Code-First và Design-First nằm tại
+[code-first-vs-design-first](code-first-vs-design-first/).
+

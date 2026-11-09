@@ -1,0 +1,5 @@
+Flask>=3.0,<4
+flask-smorest>=0.47,<1
+connexion[flask,uvicorn,swagger-ui]>=3.1,<4
+PyYAML>=6.0,<7
+

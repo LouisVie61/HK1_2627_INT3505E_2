@@ -1,0 +1,64 @@
+openapi: 3.0.3
+info:
+  title: Products API - Design-First
+  version: 1.0.0
+  description: Contract được viết trước code handler.
+servers:
+  - url: http://localhost:5002
+paths:
+  /products:
+    get:
+      operationId: design_first.api.products.list_products
+      responses:
+        '200':
+          description: Danh sách sản phẩm
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    post:
+      operationId: design_first.api.products.create_product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Sản phẩm đã được tạo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Dữ liệu không hợp lệ
+components:
+  schemas:
+    Product:
+      type: object
+      required: [id, name, price]
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Coffee
+        price:
+          type: number
+          format: float
+          example: 4.5
+    ProductInput:
+      type: object
+      required: [name, price]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        price:
+          type: number
+          minimum: 0
+
