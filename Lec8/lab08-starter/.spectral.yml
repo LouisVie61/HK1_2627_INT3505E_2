@@ -1,0 +1,19 @@
+extends: spectral:oas
+
+rules:
+  # A 204 response must not describe a response body.
+  no-content-on-204:
+    description: HTTP 204 responses must not contain content.
+    severity: error
+    given: $.paths[*][*].responses['204']
+    then:
+      field: content
+      function: falsy
+
+  # Keep the response contract useful for client generation and tests.
+  response-200-schema-not-empty:
+    description: Every HTTP 200 response must define a non-empty schema.
+    severity: error
+    given: $.paths[*][*].responses['200'].content.*.schema
+    then:
+      function: truthy

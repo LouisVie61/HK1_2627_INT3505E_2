@@ -2,15 +2,24 @@ openapi: 3.0.3
 info:
   title: Books API — Lab 08
   version: 1.0.0
+  contact:
+    name: Lab 08 API team
   description: |
     Educational API. LAB 2: three *intentional* contract defects remain.
     The application is the reference for intended behavior.
 servers:
   - url: http://localhost:5000
+tags:
+  - name: system
+    description: Service health operations.
+  - name: books
+    description: Book catalog operations.
 paths:
   /health:
     get:
       operationId: healthCheck
+      description: Check whether the service is ready.
+      tags: [system]
       responses:
         '200':
           description: Service is ready
@@ -22,7 +31,9 @@ paths:
                   status: {type: string}
   /books:
     get:
-      # LAB 2 intentional issue 1: operationId is missing.
+      operationId: listBooks
+      description: List books with optional filtering and pagination.
+      tags: [books]
       parameters:
         - in: query
           name: author
@@ -43,6 +54,8 @@ paths:
                 items: {$ref: '#/components/schemas/Book'}
     post:
       operationId: createBook
+      description: Create a book.
+      tags: [books]
       requestBody:
         required: true
         content:
@@ -64,6 +77,8 @@ paths:
         schema: {type: integer, minimum: 1}
     get:
       operationId: getBook
+      description: Get a book by ID.
+      tags: [books]
       responses:
         '200':
           description: Book found
@@ -73,6 +88,8 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
     put:
       operationId: updateBook
+      description: Replace a book by ID.
+      tags: [books]
       requestBody:
         required: true
         content:
@@ -88,13 +105,11 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
     delete:
       operationId: deleteBook
+      description: Delete a book by ID.
+      tags: [books]
       responses:
         '204':
           description: Deleted (response has no body)
-          # LAB 2 intentional issue 2: 204 incorrectly declares a body.
-          content:
-            application/json:
-              schema: {type: object}
         '404': {$ref: '#/components/responses/NotFound'}
 components:
   schemas:
