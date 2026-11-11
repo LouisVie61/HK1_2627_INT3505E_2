@@ -10,6 +10,15 @@ rules:
       field: content
       function: falsy
 
+  book-year-must-be-integer:
+    description: Book.year must match the integer type returned by the API.
+    severity: error
+    given: $.components.schemas.Book.properties.year.type
+    then:
+      function: enumeration
+      functionOptions:
+        values: [integer]
+
   # Keep the response contract useful for client generation and tests.
   response-200-schema-not-empty:
     description: Every HTTP 200 response must define a non-empty schema.

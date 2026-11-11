@@ -31,7 +31,7 @@ paths:
                   status: {type: string}
   /books:
     get:
-      operationId: listBooks
+      # LAB 2 intentional issue: operationId is missing.
       description: List books with optional filtering and pagination.
       tags: [books]
       parameters:
@@ -110,6 +110,10 @@ paths:
       responses:
         '204':
           description: Deleted (response has no body)
+          # LAB 2 intentional issue: 204 incorrectly declares a body.
+          content:
+            application/json:
+              schema: {type: object}
         '404': {$ref: '#/components/responses/NotFound'}
 components:
   schemas:
@@ -121,8 +125,8 @@ components:
         id: {type: integer, minimum: 1}
         title: {type: string, minLength: 1, maxLength: 200}
         author: {type: string, minLength: 1, maxLength: 200}
-        # Book.year is represented as an integer (or null) by the API.
-        year: {type: integer, nullable: true}
+        # LAB 2 intentional issue: actual Book.year is integer/null.
+        year: {type: string, nullable: true}
         isbn: {type: string, pattern: '^\d{13}$', nullable: true}
     BookInput:
       type: object
